@@ -23,12 +23,6 @@ void read_command_line(char line[])
     line[strlen(line) - 1] = '\0';
 }
 
-void command_from_redirection(char line[])
-{
-
-
-}
-
 void parse_command(char line[], char *args[], int *argsc)
 {
     ///Implements simple tokenization (space delimited)
@@ -94,20 +88,4 @@ void launch_program(char *args[], int argsc)
     ///so that the shell, not the child process,
     ///exits.
 
-}
-
-
-void child_with_input_redirected(char *args[], int argsc)
-{
-
-}
-
-void child_with_output_redirected(char *args[], int argsc)
-{
-
-}
-
-void launch_program_with_redirection(char *args[], int argsc)
-{
-    
 }

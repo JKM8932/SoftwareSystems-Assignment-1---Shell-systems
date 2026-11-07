@@ -1,5 +1,6 @@
 #include "s3.h"
 
+// IMPORTANT: this s3main.c code is DIFFERENT from section 1.
 int main(int argc, char *argv[]){
 
     ///Stores the command line input
@@ -13,13 +14,20 @@ int main(int argc, char *argv[]){
     int argsc;
 
     while (1) {
+
         read_command_line(line);
-
-        parse_command(line, args, &argsc);
-
-        launch_program(args, argsc); 
-
-        reap();
+        
+        if(command_with_redirection(line)){///Command with redirection
+           parse_command(line, args, &argsc);
+           launch_program_with_redirection(args, argsc);
+           reap();
+       }
+       else ///Basic command
+       {
+           parse_command(line, args, &argsc);
+           launch_program(args, argsc);
+           reap();
+       }
     }
 
     return 0;

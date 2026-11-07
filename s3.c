@@ -25,12 +25,6 @@ void read_command_line(char line[])
 
 void parse_command(char line[], char *args[], int *argsc)
 {
-    ///Implements simple tokenization (space delimited)
-    ///Note: strtok puts '\0' (null) characters within the existing storage, 
-    ///to split it into logical cstrings.
-    ///There is no dynamic allocation.
-
-    ///See the man page of strtok(...)
     char *token = strtok(line, " ");
     *argsc = 0;
     while (token != NULL && *argsc < MAX_ARGS - 1)
@@ -42,6 +36,15 @@ void parse_command(char line[], char *args[], int *argsc)
     args[*argsc] = NULL; ///args must be null terminated
 }
 
+// Function call used to check if redirection is required (sort)
+// May need to edit to check specifically for the < and > signs as normal sort should be fine
+int command_with_redirection(char line[]){
+    char *sort_token = strtok(line, " ");
+    if (sort_token != NULL && strcmp(sort_token, "sort") == 0) return 1;
+    else return 0;
+}
+
+
 ///Launch related functions
 void child(char *args[], int argsc)
 {
@@ -50,11 +53,6 @@ void child(char *args[], int argsc)
     fprintf(stderr, "execvp failed\n");
     exit(1);
 
-    ///Implement this function:
-
-    ///Use execvp to load the binary 
-    ///of the command specified in args[ARG_PROGNAME].
-    ///For reference, see the code in lecture 3.
 }
 
 void launch_program(char *args[], int argsc)
@@ -77,15 +75,76 @@ void launch_program(char *args[], int argsc)
         printf("Parent (pid:%d)\n", getpid());
         waitpid(rc, NULL, 0);
     }             
-    ///Implement this function:
+}
 
-    ///fork() a child process.
-    ///In the child part of the code,
-    ///call child(args, argv)
-    ///For reference, see the code in lecture 2.
+void child_with_output_redirected(char *args[], int argsc){
 
-    ///Handle the 'exit' command;
-    ///so that the shell, not the child process,
-    ///exits.
+}
+
+void child_with_input_redirected(char *args[], int argsc){
+    int chars_read = read(fd, input, MAX_PROMPT_LEN); // check later
+    input[chars_read] = '\0';                         // end the string with null terminator
+    printf("Read from the file: %s\n", input);
+
+}
+
+void launch_program_with_redirection(char *args[], int argsc){
+
+    // As command_with_redirection checks for the sort command,
+    // Not much need to check arguments in case of empty args or argsc == 0
+
+    // STDIN_FILENO = 0;   input from keyboard(default)
+    // STDOUT_FILENO = 1;   normal output to terminal(default)
+    // STDERR_FILENO = 2;   error messages
+
+    char *check_redir;
+    int index = ARG_PROGNAME, flagin = 0, flagout = 0;
+    char in_loc[MAX_LINE];
+    char out_loc[MAX_LINE];
+
+    while (check_redir != NULL){
+
+        // Input file?
+        if (strcmp(check_redir, "<") == 0){
+            in_loc[0] = args[index+1];
+            flagin  = 1;
+        }
+
+        // Output file?
+        if (strcmp(check_redir, ">") == 0){
+            out_loc[0] = args[index+1];
+            flagout = 1;
+        }
+        check_redir == args[index++];
+    }
+
+    if(flagin){
+        char input[MAX_LINE];
+        int fd = open(in_loc[0], O_RDONLY);         // READ-ONLY
+        if (fd == -1){
+            perror("open");
+            return 1;
+        }
+        printf("File %s linked\n", in_loc[0]);
+        int rc = fork();
+        if (rc < 0){                                            // fork failed
+            fprintf(stderr, "fork failed\n");
+            exit(1);
+        }
+        else if (rc == 0){                                      // child process
+            printf("Child (pid:%d)\n", getpid());
+            child(args, argsc);
+        }                          
+        else{                                                   // parent process
+            printf("Parent (pid:%d)\n", getpid());
+            waitpid(rc, NULL, 0);
+        }        
+
+
+    }
+
+    if(flagout){
+
+    }
 
 }

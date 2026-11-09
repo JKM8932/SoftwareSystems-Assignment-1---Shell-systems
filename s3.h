@@ -35,8 +35,11 @@ static inline void reap()
 }
 
 ///Shell I/O and related functions (add more as appropriate)
-void read_command_line(char line[]);
-void construct_shell_prompt(char shell_prompt[]);
+void init_lwd(char lwd[]);
+int is_cd(char line[]);
+void run_cd(char *args[], int argsc, char line[]);
+void read_command_line(char line[], char lwd[]);
+void construct_shell_prompt(char shell_prompt[], char lwd[]);
 void parse_command(char line[], char *args[], int *argsc);
 int command_with_redirection(char line[]);
 

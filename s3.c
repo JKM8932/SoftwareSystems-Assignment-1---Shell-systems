@@ -1,16 +1,72 @@
 #include "s3.h"
 
 ///Simple for now, but will be expanded in a following section
-void construct_shell_prompt(char shell_prompt[])
+void construct_shell_prompt(char shell_prompt[], char lwd[])
 {
-    strcpy(shell_prompt, "[s3]$ ");
+    if (lwd != NULL){
+        strcpy(shell_prompt, lwd);
+        strcat(shell_prompt, " [s3]$");
+        // printf("updated directory");                                 debug
+    }
+    else{
+        strcpy(shell_prompt, "[s3]$");
+    }
+}
+
+// Grab current working directory, store it in string storage lwd
+void init_lwd(char lwd[])
+{
+    getcwd(lwd, MAX_PROMPT_LEN);
+}
+
+int is_cd(char line[])
+{
+    if (line == NULL) return 0;
+    if (line[0] == 'c' && line[1] == 'd') return 1;
+    // printf("failed") -> has not printed wrongly                      debug
+    return 0;
+}
+
+void run_cd(char *args[], int argsc, char lwd[])
+{
+    int result = -1;
+
+    // printf("Triggered run_cd");                                      debug
+    if (args[ARG_1] == NULL){
+        result = chdir(getenv("HOME"));
+    }
+    // else if (strcmp(args[ARG_1], ".") == 0){                         no longer need to account for "." and ".." (Passes normally)
+    //     result = chdir(".");
+    // }
+    // else if (strcmp(args[ARG_1], "..") == 0){
+    //     // int len = strlen(lwd);                                    depreciated code (not used anymore, not required)
+    //     // for (int i = 0; i < len; i++){
+    //     //     if (lwd[len - 1 - i] == '/'){
+    //     //         lwd[len - 1 - i] = '\0';
+    //     //         break;
+    //     //     }
+    //     // }
+    //     result = chdir("..");
+    // }
+    else{
+        result = chdir(args[ARG_1]);
+    }
+    
+    if (result < 0){
+        perror("cd failed");
+        return;
+    }
+
+    if (getcwd(lwd, MAX_PROMPT_LEN) == NULL){
+        perror("getcwd for new cd failed");
+    }
 }
 
 ///Prints a shell prompt and reads input from the user
-void read_command_line(char line[])
+void read_command_line(char line[], char lwd[])
 {
     char shell_prompt[MAX_PROMPT_LEN];
-    construct_shell_prompt(shell_prompt);
+    construct_shell_prompt(shell_prompt, lwd);
     printf("%s", shell_prompt);
 
     ///See man page of fgets(...)

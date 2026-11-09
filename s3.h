@@ -23,6 +23,8 @@ enum ArgIndex
     ARG_1,
     ARG_2,
     ARG_3,
+    ARG_4,
+    ARG_5,
 };
 
 ///With inline functions, the compiler replaces the function call 
@@ -42,6 +44,8 @@ int command_with_redirection(char line[]);
 
 ///Child functions (add more as appropriate)
 void child(char *args[], int argsc);
+void child_with_input_redirected(char *args[], int argsc, char *in_loc);
+void child_with_output_redirected(char *args[], int argsc, char *out_loc);
 
 ///Program launching functions (add more as appropriate)
 void launch_program(char *args[], int argsc);

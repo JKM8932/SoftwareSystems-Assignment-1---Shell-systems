@@ -51,4 +51,5 @@ void child_with_output_redirected(char *args[], int argsc, char *out_loc);
 ///Program launching functions (add more as appropriate)
 void launch_program(char *args[], int argsc);
 void launch_program_with_redirection(char *args[], int argsc);
+void launch_program_pipe(char *args[], int argsc);
 #endif

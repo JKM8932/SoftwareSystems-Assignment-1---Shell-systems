@@ -6,8 +6,7 @@ void construct_shell_prompt(char shell_prompt[], char lwd[])
     if (lwd != NULL){
         strcpy(shell_prompt, lwd);
         strcat(shell_prompt, " [s3]$");
-        // printf("updated directory");                                 debug
-    }
+        }
     else{
         strcpy(shell_prompt, "[s3]$");
     }
@@ -23,7 +22,6 @@ int is_cd(char line[])
 {
     if (line == NULL) return 0;
     if (line[0] == 'c' && line[1] == 'd') return 1;
-    // printf("failed") -> has not printed wrongly                      debug
     return 0;
 }
 
@@ -31,27 +29,13 @@ void run_cd(char *args[], int argsc, char lwd[])
 {
     int result = -1;
 
-    // printf("Triggered run_cd");                                      debug
     if (args[ARG_1] == NULL){
         result = chdir(getenv("HOME"));
     }
-    // else if (strcmp(args[ARG_1], ".") == 0){                         no longer need to account for "." and ".." (Passes normally)
-    //     result = chdir(".");
-    // }
-    // else if (strcmp(args[ARG_1], "..") == 0){
-    //     // int len = strlen(lwd);                                    depreciated code (not used anymore, not required)
-    //     // for (int i = 0; i < len; i++){
-    //     //     if (lwd[len - 1 - i] == '/'){
-    //     //         lwd[len - 1 - i] = '\0';
-    //     //         break;
-    //     //     }
-    //     // }
-    //     result = chdir("..");
-    // }
     else{
         result = chdir(args[ARG_1]);
     }
-    
+
     if (result < 0){
         perror("cd failed");
         return;
@@ -69,13 +53,11 @@ void read_command_line(char line[], char lwd[])
     construct_shell_prompt(shell_prompt, lwd);
     printf("%s", shell_prompt);
 
-    ///See man page of fgets(...)
     if (fgets(line, MAX_LINE, stdin) == NULL)
     {
         perror("fgets failed");
         exit(1);
     }
-    ///Remove newline (enter)
     line[strlen(line) - 1] = '\0';
 }
 
@@ -93,12 +75,10 @@ void parse_command(char line[], char *args[], int *argsc)
 }
 
 // Function call used to check if redirection is required
-// May need to edit to check specifically for the < and > signs as normal sort should be fine
 int command_with_redirection(char line[])
 {
     for (int i = 0; line[i] != '\0'; i++){
-        if (line[i] == '<' || line[i] == '>'){              // if there is ">>", '>' is already detected, there is no need to purposely check for >>
-            return 1;
+        if (line[i] == '<' || line[i] == '>'){             
         }
     }
     return 0;

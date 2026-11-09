@@ -23,8 +23,6 @@ enum ArgIndex
     ARG_1,
     ARG_2,
     ARG_3,
-    ARG_4,
-    ARG_5,
 };
 
 ///With inline functions, the compiler replaces the function call 

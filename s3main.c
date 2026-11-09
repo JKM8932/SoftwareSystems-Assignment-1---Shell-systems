@@ -1,4 +1,5 @@
 #include "s3.h"
+// gcc *.c -o s3
 
 // IMPORTANT: this s3main.c code is DIFFERENT from section 1.
 int main(int argc, char *argv[]){

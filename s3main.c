@@ -18,27 +18,36 @@ int main(int argc, char *argv[]){
     ///Stores the number of arguments
     int argsc;
 
+    ///Stores the individual pipe processes
+    char *pipereqs[MAX_LINE];
+
+    ///Stores the number of individual pipe commands
+    int pipereqc;
+
     while (1) {
 
         read_command_line(line, lwd); ///Notice the additional parameter (required for prompt construction)
 
         if(is_cd(line)){///Implement this function
-            // printf("successful cd"); -> checked, it works
             parse_command(line, args, &argsc);
             run_cd(args, argsc, lwd); ///Implement this function
         }
+        else if(command_with_pipe(line)){ 
+            parse_pipes(line, pipereqs, &pipereqc);
+            launch_program_pipe(pipereqs, pipereqc);
+            reap();
+        }
         else if(command_with_redirection(line)){
-            ///Command with redirection
-           parse_command(line, args, &argsc);
-           launch_program_with_redirection(args, argsc);
-           reap();
-       }
-       else ///Basic command
-       {
-           parse_command(line, args, &argsc);
-           launch_program(args, argsc);
-           reap();
-       }
+            parse_command(line, args, &argsc);
+            launch_program_with_redirection(args, argsc, NULL, NULL);
+            reap();
+        }
+        else ///Basic command
+        {
+            parse_command(line, args, &argsc);
+            launch_program(args, argsc, NULL, NULL);
+            reap();
+        }
     }
 
     return 0;

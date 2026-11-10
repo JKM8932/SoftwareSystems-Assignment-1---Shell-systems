@@ -41,7 +41,9 @@ void run_cd(char *args[], int argsc, char line[]);
 void read_command_line(char line[], char lwd[]);
 void construct_shell_prompt(char shell_prompt[], char lwd[]);
 void parse_command(char line[], char *args[], int *argsc);
+void parse_pipes(char line[], char *pipereqs[], int *pipereqc);
 int command_with_redirection(char line[]);
+int command_with_pipe(char line[]);
 
 ///Child functions (add more as appropriate)
 void child(char *args[], int argsc);
@@ -49,7 +51,7 @@ void child_with_input_redirected(char *args[], int argsc, char *in_loc);
 void child_with_output_redirected(char *args[], int argsc, char *out_loc);
 
 ///Program launching functions (add more as appropriate)
-void launch_program(char *args[], int argsc);
-void launch_program_with_redirection(char *args[], int argsc);
+void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE);
+void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE);
 void launch_program_pipe(char *args[], int argsc);
 #endif

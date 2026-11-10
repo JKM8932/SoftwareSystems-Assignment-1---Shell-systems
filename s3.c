@@ -85,6 +85,7 @@ int command_with_redirection(char line[])
     return 0;
 }
 
+///Checks if there is pipe symbol
 int command_with_pipe(char line[])
 {
     for (int i = 0; line[i] != '\0'; i++){
@@ -93,6 +94,21 @@ int command_with_pipe(char line[])
         }
     }
     return 0;
+}
+
+
+///Separates line[] into individual segments based on pipe symbol as a divider 
+void parse_pipes(char line[], char *pipereqs[], int *pipereqc)
+{
+    char *command = strtok(line, "|");
+    *pipereqc = 0;
+    while (command != NULL)
+    {
+        pipereqs[(*pipereqc)++] = command;
+        command = strtok(NULL, "|");
+    }
+
+    pipereqs[*pipereqc] = NULL;
 }
 
 ///Launch related functions
@@ -106,7 +122,7 @@ void child(char *args[], int argsc)
 
 }
 
-void launch_program(char *args[], int argsc)
+void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE)
 {
     if (argsc == 0) return;                                 // if no argument -> no need to launch program
     if (strcmp(args[ARG_PROGNAME], "exit") == 0){
@@ -114,18 +130,31 @@ void launch_program(char *args[], int argsc)
     }
 
     int rc = fork();
-    if (rc < 0){                                            // fork failed
+    if (rc < 0)
+    {
         fprintf(stderr, "fork failed\n");
         exit(1);
     }
-    else if (rc == 0){                                      // child process
-        printf("Child (pid:%d)\n", getpid());
+
+    else if (rc == 0)
+    {                                      // child process
+        if (FD_PREAD != NULL){
+            dup2(*FD_PREAD, STDIN_FILENO);
+            close(*FD_PREAD);
+        }
+        if (FD_PWRITE != NULL){
+            dup2(*FD_PWRITE, STDOUT_FILENO);
+            close(*FD_PWRITE);
+        }
+        printf("(Read Pipe) Child (pid:%d)\n", getpid());
         child(args, argsc);
-    }                          
-    else{                                                   // parent process
-        printf("Parent (pid:%d)\n", getpid());
+    }                
+
+    else
+    {
+        printf("(Read Pipe) Parent (pid:%d)\n", getpid());
         waitpid(rc, NULL, 0);
-    }             
+    }
 }
 
 void child_with_output_redirected(char *args[], int argsc, char *out_loc)
@@ -169,7 +198,7 @@ void child_with_input_redirected(char *args[], int argsc, char *in_loc)
     close(fd_read);                                                             // close original fd_read after
 }
 
-void launch_program_with_redirection(char *args[], int argsc)
+void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE)
 {
     if (argsc == 0) return;
     // STDIN_FILENO = 0;   input from keyboard(default)
@@ -193,7 +222,8 @@ void launch_program_with_redirection(char *args[], int argsc)
     }
 
     // FORK SEGMENT
-    if(flagin && flagout){                                                      // redirection at input and output
+    if(flagin && flagout)
+    {                                                      // redirection at input and output
         int rc = fork();
         if (rc < 0){                                                            // fork failed
             fprintf(stderr, "fork failed\n");
@@ -218,7 +248,8 @@ void launch_program_with_redirection(char *args[], int argsc)
         }        
     }
 
-    else if(flagin){                                                            // redirection at input only
+    else if(flagin)
+    {                                                            // redirection at input only
         int rc = fork();
         if (rc < 0){                                                            // fork failed
             fprintf(stderr, "fork failed\n");
@@ -234,6 +265,10 @@ void launch_program_with_redirection(char *args[], int argsc)
                     break;
                 }
             }
+            if(FD_PWRITE != NULL){
+                dup2(*FD_PWRITE, STDOUT_FILENO);
+                close(*FD_PWRITE);
+            }
             execvp(args[ARG_PROGNAME], args);
         }                          
         else{                                                                   // parent process
@@ -242,7 +277,8 @@ void launch_program_with_redirection(char *args[], int argsc)
         }
     }
 
-    else if(flagout){                                                           // redirection at output only
+    else if(flagout)
+    {                                                           // redirection at output only
         int rc = fork();        
         if (rc < 0){                                                            // fork failed
             fprintf(stderr, "fork failed\n");
@@ -258,8 +294,13 @@ void launch_program_with_redirection(char *args[], int argsc)
                     break;
                 }
             }
+            if(FD_PREAD != NULL){
+                dup2(*FD_PREAD, STDIN_FILENO);
+                close(*FD_PREAD);
+            }
             execvp(args[ARG_PROGNAME], args);
-        }                          
+        }      
+
         else{                                                                   // parent process
             printf("Parent (pid:%d)\n", getpid());
             waitpid(rc, NULL, 0);
@@ -267,8 +308,54 @@ void launch_program_with_redirection(char *args[], int argsc)
     }
 }
 
-void launch_program_pipe(char *args[], int argsc)
+void launch_program_pipe(char *pipereqs[], int pipereqc)
 {
+    // Pipe left & right processing
+    char *args_pipe_left[MAX_ARGS];
+    int argsc_left;
+    char *args_pipe_right[MAX_ARGS];
+    int argsc_right;
 
+    for (int i = 0; i < pipereqc-1; i++){
+
+        // Pipe initialisation
+        int fd[2];
+        int rc = pipe(fd);
+        int FD_PREAD, FD_PWRITE;
+        if (rc < 0){
+            perror("pipe failed");
+            exit(EXIT_FAILURE);
+        }else{
+            FD_PREAD = fd[0];
+            FD_PWRITE = fd[1];
+        }
+
+        if(command_with_redirection(pipereqs[i]) && command_with_redirection(pipereqs[i+1])){
+            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
+            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
+            launch_program_with_redirection(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
+            launch_program_with_redirection(args_pipe_right, argsc_right, &FD_PREAD, NULL);
+        }
+        else if(command_with_redirection(pipereqs[i])){
+            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
+            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
+            launch_program_with_redirection(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
+            launch_program(args_pipe_right, argsc_right, &FD_PREAD, NULL);
+        }
+        else if(command_with_redirection(pipereqs[i+1])){
+            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
+            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
+            launch_program(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
+            launch_program_with_redirection(args_pipe_right, argsc_right, &FD_PREAD, NULL);
+        }
+        else{
+            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
+            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
+            launch_program(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
+            launch_program(args_pipe_right, argsc_right, &FD_PREAD, NULL);
+        }
+        close(FD_PWRITE);
+        close(FD_PREAD);
+    }
 }
 

@@ -129,6 +129,11 @@ void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE)
         exit(EXIT_SUCCESS);
     }
 
+    int wait_child = 1;
+    if (FD_PREAD != NULL || FD_PWRITE != NULL){
+        wait_child = 0;
+    }
+
     int rc = fork();
     if (rc < 0)
     {
@@ -146,14 +151,25 @@ void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE)
             dup2(*FD_PWRITE, STDOUT_FILENO);
             close(*FD_PWRITE);
         }
-        printf("(Read Pipe) Child (pid:%d)\n", getpid());
+        fprintf(stderr, "(Read Pipe) Child (pid:%d)\n", getpid());
         child(args, argsc);
     }                
 
     else
     {
-        printf("(Read Pipe) Parent (pid:%d)\n", getpid());
-        waitpid(rc, NULL, 0);
+        if (wait_child){
+            fprintf(stderr, "Parent (pid:%d)\n", getpid());
+            waitpid(rc, NULL, 0);
+        }
+        else{
+            if (FD_PREAD != NULL){
+                close(*FD_PREAD);
+            }
+            if (FD_PWRITE != NULL){
+                close(*FD_PWRITE);
+            }
+            fprintf(stderr, "(Read Pipe) Parent (pid:%d), Skipping...\n", getpid());
+        }
     }
 }
 
@@ -209,6 +225,10 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
     int index = 0, flagin = 0, flagout = 0;
     char *in_loc;
     char *out_loc;
+    int wait_child = 1;
+    if (FD_PREAD != NULL|| FD_PWRITE != NULL){
+        wait_child = 0;
+    }
 
     for (int i = 0; args[i] != NULL; i++) {
         if (strcmp(args[i], "<") == 0) {
@@ -230,7 +250,7 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
             exit(1);
         }
         else if (rc == 0){                                                      // child process
-            printf("Child (pid:%d)\n", getpid());
+            fprintf(stderr, "(Redirection) Child (pid:%d)\n", getpid());
             child_with_input_redirected(args, argsc, in_loc);
             child_with_output_redirected(args, argsc, out_loc);
             for (int i = 0; args[i] != NULL; i++) {
@@ -243,7 +263,7 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
             execvp(args[ARG_PROGNAME], args);
         }                          
         else{                                                                   // parent process
-            printf("Parent (pid:%d)\n", getpid());
+            fprintf(stderr, "(Redirection) Parent (pid:%d)\n", getpid());
             waitpid(rc, NULL, 0);
         }        
     }
@@ -256,7 +276,7 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
             exit(1);
         }
         else if (rc == 0){                                                      // child process
-            printf("Child (pid:%d)\n", getpid());
+            fprintf(stderr, "(Redirection) Child (pid:%d)\n", getpid());
             child_with_input_redirected(args, argsc, in_loc);
             for (int i = 0; args[i] != NULL; i++) {
                 if (strcmp(args[i], "<") == 0) {
@@ -272,8 +292,14 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
             execvp(args[ARG_PROGNAME], args);
         }                          
         else{                                                                   // parent process
-            printf("Parent (pid:%d)\n", getpid());
-            waitpid(rc, NULL, 0);
+            if (wait_child){
+                fprintf(stderr, "(Redirection) Parent (pid:%d)\n", getpid());
+                waitpid(rc, NULL, 0);
+            }
+            else{
+                close(*FD_PWRITE);
+                fprintf(stderr, "(Write Pipe) (Redirection) Parent (pid:%d), Skipping... \n", getpid());
+            }
         }
     }
 
@@ -285,7 +311,7 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
             exit(1);
         }
         else if (rc == 0){                                                      // child process
-            printf("Child (pid:%d)\n", getpid());
+            fprintf(stderr, "(Redirection) Child (pid:%d)\n", getpid());
             child_with_output_redirected(args, argsc, out_loc);
             for (int i = 0; args[i] != NULL; i++) {
                 if (strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0) {
@@ -302,8 +328,14 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
         }      
 
         else{                                                                   // parent process
-            printf("Parent (pid:%d)\n", getpid());
-            waitpid(rc, NULL, 0);
+            if (wait_child){
+                fprintf(stderr, "(Redirection) Parent (pid:%d)\n", getpid());
+                waitpid(rc, NULL, 0);
+            }
+            else{
+                close(*FD_PREAD);
+                fprintf(stderr, "(Write Pipe) (Redirection) Parent (pid:%d), Skipping... \n", getpid());
+            }
         }
     }
 }
@@ -311,51 +343,48 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
 void launch_program_pipe(char *pipereqs[], int pipereqc)
 {
     // Pipe left & right processing
-    char *args_pipe_left[MAX_ARGS];
-    int argsc_left;
-    char *args_pipe_right[MAX_ARGS];
-    int argsc_right;
 
-    for (int i = 0; i < pipereqc-1; i++){
+    int prev_FD_PREAD = -1;                  // initially, no need to read from pipe, not until after writing is done
+
+    for (int i = 0; i < pipereqc; i++){
+
+        int redir = command_with_redirection(pipereqs[i]);
+        int next_pipe = (i+1 < pipereqc);
 
         // Pipe initialisation
         int fd[2];
-        int rc = pipe(fd);
-        int FD_PREAD, FD_PWRITE;
-        if (rc < 0){
-            perror("pipe failed");
-            exit(EXIT_FAILURE);
-        }else{
-            FD_PREAD = fd[0];
-            FD_PWRITE = fd[1];
+        if (next_pipe){
+            int rc = pipe(fd);
+            if (rc < 0){
+                perror("pipe failed");
+                exit(EXIT_FAILURE);
+            }
         }
 
-        if(command_with_redirection(pipereqs[i]) && command_with_redirection(pipereqs[i+1])){
-            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
-            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
-            launch_program_with_redirection(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
-            launch_program_with_redirection(args_pipe_right, argsc_right, &FD_PREAD, NULL);
-        }
-        else if(command_with_redirection(pipereqs[i])){
-            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
-            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
-            launch_program_with_redirection(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
-            launch_program(args_pipe_right, argsc_right, &FD_PREAD, NULL);
-        }
-        else if(command_with_redirection(pipereqs[i+1])){
-            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
-            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
-            launch_program(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
-            launch_program_with_redirection(args_pipe_right, argsc_right, &FD_PREAD, NULL);
+        int *FD_PREAD = (i > 0) ? &prev_FD_PREAD : NULL;
+        int *FD_PWRITE = (next_pipe) ? &fd[1] : NULL;
+
+
+        // Setup to do individual command line (rolling basis)
+        char *args[MAX_ARGS];
+        int argsc;
+        parse_command(pipereqs[i], args, &argsc);
+
+        // Launch
+        if(redir){
+            launch_program_with_redirection(args, argsc, FD_PREAD, FD_PWRITE);
         }
         else{
-            parse_command(pipereqs[i], args_pipe_left, &argsc_left);
-            parse_command(pipereqs[i+1], args_pipe_right, &argsc_right);
-            launch_program(args_pipe_left, argsc_left, NULL, &FD_PWRITE);
-            launch_program(args_pipe_right, argsc_right, &FD_PREAD, NULL);
+            launch_program(args, argsc, FD_PREAD, FD_PWRITE);
         }
-        close(FD_PWRITE);
-        close(FD_PREAD);
+
+        // Cleanup/Setup for next cycle
+        if (i > 0){
+            close(prev_FD_PREAD);
+        }
+        if (next_pipe){
+            prev_FD_PREAD = fd[0];
+        }
     }
 }
 

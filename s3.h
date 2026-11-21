@@ -15,6 +15,7 @@
 #define MAX_LINE 1024
 #define MAX_ARGS 128
 #define MAX_PROMPT_LEN 256
+#define MAX_PIPES 20                                                            // new parameter, not really any specific reason, just that pipes past 20 might not seem normal?
 
 ///Enum for readable argument indices (use where required)
 enum ArgIndex

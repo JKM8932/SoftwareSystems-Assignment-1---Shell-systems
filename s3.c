@@ -194,7 +194,7 @@ void child_with_output_redirected(char *args[], int argsc, char *out_loc)
         perror("Unable to open file to write");
         exit(EXIT_FAILURE);
     }
-    printf("File %s linked\n", out_loc);                                        // debug
+    fprintf(stderr, "File %s linked\n", out_loc);                                // debug
 
     dup2(fd_write, STDOUT_FILENO);                                              // dup2 -> duplicate fd_write location to replace STDOUT_FILENO (standard input)
     close(fd_write);                                                            // close original fd_write after
@@ -208,7 +208,7 @@ void child_with_input_redirected(char *args[], int argsc, char *in_loc)
         perror("Unable to open file to read");
         exit(EXIT_FAILURE);
     }
-    printf("File %s linked\n", in_loc);                                         // debug
+    fprintf(stderr, "File %s linked\n", in_loc);                                // debug
 
     dup2(fd_read, STDIN_FILENO);                                                // dup2 -> duplicate fd_read location to replace STDIN_FILENO (standard input)
     close(fd_read);                                                             // close original fd_read after
@@ -232,10 +232,18 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
 
     for (int i = 0; args[i] != NULL; i++) {
         if (strcmp(args[i], "<") == 0) {
+            if (args[i+1] == NULL){
+                fprintf(stderr, "missing argument for redirection!");
+                return;
+            }
             in_loc = args[i + 1];
             flagin = 1;
         }
         if (strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0) {
+            if (args[i+1] == NULL){
+                fprintf(stderr, "missing argument for redirection!");
+                return;
+            }
             out_loc = args[i + 1];
             flagout = 1;
         }
@@ -325,6 +333,8 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
                 close(*FD_PREAD);
             }
             execvp(args[ARG_PROGNAME], args);
+            fprintf(stderr, "redirection child execvp failed\n");
+            exit(1);            
         }      
 
         else{                                                                   // parent process
@@ -385,6 +395,9 @@ void launch_program_pipe(char *pipereqs[], int pipereqc)
         if (next_pipe){
             prev_FD_PREAD = fd[0];
         }
+    }
+    while (wait(NULL) > 0){
+        // repeat loop, until there's no more child processes that can be finished. 
     }
 }
 

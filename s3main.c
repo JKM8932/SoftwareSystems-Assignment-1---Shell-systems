@@ -24,26 +24,45 @@ int main(int argc, char *argv[]){
     ///Stores the number of individual pipe commands
     int pipereqc;
 
+    ///Stores the individual batch processes
+    char *batches[MAX_LINE];
+
+    ///Stores the number of individual batch processes
+    int batchnum;
+
     while (1) {
 
-        read_command_line(line, lwd); ///Notice the additional parameter (required for prompt construction)
+        read_command_line(line, lwd);
 
-        if(is_cd(line)){///Implement this function
-            parse_command(line, args, &argsc);
-            run_cd(args, argsc, lwd); ///Implement this function
-        }
-        else if(command_with_pipe(line)){ 
-            parse_pipes(line, pipereqs, &pipereqc);
-            launch_program_pipe(pipereqs, pipereqc);
+        // Batch
+        if (command_with_batch(line)){
+            parse_batch(line, batches, &batchnum);
+            launch_program_batch(batches, batchnum, pipereqs, pipereqc, args, argsc, lwd);
             reap();
         }
+
+        // "cd"
+        else if(is_cd(line)){
+            parse_command(line, args, &argsc);
+            run_cd(args, argsc, lwd); 
+        }
+
+        // Pipes
+        else if(command_with_pipe(line)){ 
+            parse_pipes(line, pipereqs, &pipereqc);
+            launch_program_pipe(pipereqs, pipereqc, args, argsc);
+            reap();
+        }
+
+        // Redirection
         else if(command_with_redirection(line)){
             parse_command(line, args, &argsc);
             launch_program_with_redirection(args, argsc, NULL, NULL);
             reap();
         }
-        else ///Basic command
-        {
+
+        // Basic
+        else{
             parse_command(line, args, &argsc);
             launch_program(args, argsc, NULL, NULL);
             reap();

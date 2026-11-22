@@ -1,6 +1,9 @@
 #include "s3.h"
 
-///Simple for now, but will be expanded in a following section
+//// ---------------------------------------------------------
+//// Fundamental shell setup functions
+
+// Constructs shell prompt in powershell/terminal
 void construct_shell_prompt(char shell_prompt[], char lwd[])
 {
     if (lwd != NULL){
@@ -11,20 +14,37 @@ void construct_shell_prompt(char shell_prompt[], char lwd[])
         strcpy(shell_prompt, "[s3]$");
     }
 }
+// Prints a shell prompt and reads input from the user
+void read_command_line(char line[], char lwd[])
+{
+    char shell_prompt[MAX_PROMPT_LEN];
+    construct_shell_prompt(shell_prompt, lwd);
+    printf("%s", shell_prompt);
+
+    if (fgets(line, MAX_LINE, stdin) == NULL)
+    {
+        perror("fgets failed");
+        exit(1);
+    }
+    line[strlen(line) - 1] = '\0';
+}
+
+//// ---------------------------------------------------------
+//// Directory-related functions
 
 // Grab current working directory, store it in string storage lwd
 void init_lwd(char lwd[])
 {
     getcwd(lwd, MAX_PROMPT_LEN);
 }
-
+// Checks if "cd" (change directory) is called as a command
 int is_cd(char line[])
 {
     if (line == NULL) return 0;
     if (line[0] == 'c' && line[1] == 'd') return 1;
     return 0;
 }
-
+// Specific function call that carries out cd
 void run_cd(char *args[], int argsc, char lwd[])
 {
     int result = -1;
@@ -46,21 +66,10 @@ void run_cd(char *args[], int argsc, char lwd[])
     }
 }
 
-///Prints a shell prompt and reads input from the user
-void read_command_line(char line[], char lwd[])
-{
-    char shell_prompt[MAX_PROMPT_LEN];
-    construct_shell_prompt(shell_prompt, lwd);
-    printf("%s", shell_prompt);
+//// ---------------------------------------------------------
+//// Parsing functions, used for splitting up command line into segments
 
-    if (fgets(line, MAX_LINE, stdin) == NULL)
-    {
-        perror("fgets failed");
-        exit(1);
-    }
-    line[strlen(line) - 1] = '\0';
-}
-
+// Basic, splits into arguments
 void parse_command(char line[], char *args[], int *argsc)
 {
     char *token = strtok(line, " ");
@@ -73,31 +82,7 @@ void parse_command(char line[], char *args[], int *argsc)
     
     args[*argsc] = NULL; ///args must be null terminated
 }
-
-// Function call used to check if redirection is required
-int command_with_redirection(char line[])
-{
-    for (int i = 0; line[i] != '\0'; i++){
-        if (line[i] == '<' || line[i] == '>'){     
-            return 1;        
-        }
-    }
-    return 0;
-}
-
-///Checks if there is pipe symbol
-int command_with_pipe(char line[])
-{
-    for (int i = 0; line[i] != '\0'; i++){
-        if (line[i] == '|'){
-            return 1;
-        }
-    }
-    return 0;
-}
-
-
-///Separates line[] into individual segments based on pipe symbol as a divider 
+// Pipes, split into pipe requests
 void parse_pipes(char line[], char *pipereqs[], int *pipereqc)
 {
     char *command = strtok(line, "|");
@@ -110,8 +95,57 @@ void parse_pipes(char line[], char *pipereqs[], int *pipereqc)
 
     pipereqs[*pipereqc] = NULL;
 }
+// Batches, split into individual batches
+void parse_batch(char line[], char *batches[], int *batchnum)
+{
+    char *batch = strtok(line, ";");
+    *batchnum   = 0;
+    while (batch != NULL){
+        batches[(*batchnum)++] = batch;
+        batch   = strtok(NULL, ";");
+    }
+    batches[(*batchnum)] = NULL;
+}
 
-///Launch related functions
+//// ---------------------------------------------------------
+//// Checker function calls
+
+// Checks if there is redirection ('<', '>', ">>")
+int command_with_redirection(char line[])
+{
+    for (int i = 0; line[i] != '\0'; i++){
+        if (line[i] == '<' || line[i] == '>'){     
+            return 1;        
+        }
+    }
+    return 0;
+}
+// Checks if there is pipe symbol ('|')
+int command_with_pipe(char line[])
+{
+    for (int i = 0; line[i] != '\0'; i++){
+        if (line[i] == '|'){
+            return 1;
+        }
+    }
+    return 0;
+}
+// Checks if batching is required (';')
+int command_with_batch(char line[])
+{
+    for (int i = 0; i < strlen(line); i++){
+        if (line[i] == ';'){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+//// ---------------------------------------------------------
+//// Launch related functions
+
+/// Basic
+// Basic child function
 void child(char *args[], int argsc)
 {
     if (argsc == 0) return;                                 // if no argument -> no need to launch program
@@ -121,7 +155,7 @@ void child(char *args[], int argsc)
     exit(1);
 
 }
-
+// Basic launch function
 void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE)
 {
     if (argsc == 0) return;                                 // if no argument -> no need to launch program
@@ -173,6 +207,9 @@ void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE)
     }
 }
 
+
+/// Redirection
+// Child function for (output) redirection
 void child_with_output_redirected(char *args[], int argsc, char *out_loc)
 {
     if (argsc == 0) return;                                                     // if no argument -> no need to launch program
@@ -199,7 +236,7 @@ void child_with_output_redirected(char *args[], int argsc, char *out_loc)
     dup2(fd_write, STDOUT_FILENO);                                              // dup2 -> duplicate fd_write location to replace STDOUT_FILENO (standard input)
     close(fd_write);                                                            // close original fd_write after
 }
-
+// Child function for (input) redirection
 void child_with_input_redirected(char *args[], int argsc, char *in_loc)
 {
     if (argsc == 0) return;                                                     // if no argument -> no need to launch program
@@ -213,7 +250,7 @@ void child_with_input_redirected(char *args[], int argsc, char *in_loc)
     dup2(fd_read, STDIN_FILENO);                                                // dup2 -> duplicate fd_read location to replace STDIN_FILENO (standard input)
     close(fd_read);                                                             // close original fd_read after
 }
-
+// Launch function for redirection
 void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE)
 {
     if (argsc == 0) return;
@@ -350,7 +387,10 @@ void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int
     }
 }
 
-void launch_program_pipe(char *pipereqs[], int pipereqc)
+
+/// Pipes
+// Launch function for pipe command lines
+void launch_program_pipe(char *pipereqs[], int pipereqc, char *args[], int argsc)
 {
     // Pipe left & right processing
 
@@ -376,8 +416,6 @@ void launch_program_pipe(char *pipereqs[], int pipereqc)
 
 
         // Setup to do individual command line (rolling basis)
-        char *args[MAX_ARGS];
-        int argsc;
         parse_command(pipereqs[i], args, &argsc);
 
         // Launch
@@ -401,3 +439,29 @@ void launch_program_pipe(char *pipereqs[], int pipereqc)
     }
 }
 
+
+/// Batch
+// launch function for batch command lines
+void launch_program_batch(char *batches[], int batchnum, char *pipereqs[], int pipereqc, char *args[], int argsc, char lwd[])
+{
+
+    for (int i = 0; i < batchnum; i++){
+        if (is_cd(batches[i])){
+            parse_command(batches[i], args, &argsc);
+            run_cd(args, argsc, lwd); 
+        }
+        else if (command_with_pipe(batches[i])){
+            parse_pipes(batches[i], pipereqs, &pipereqc);
+            launch_program_pipe(pipereqs, pipereqc, args, argsc);
+        }
+        else if (command_with_redirection(batches[i])){
+            parse_command(batches[i], args, &argsc);
+            launch_program_with_redirection(args, argsc, NULL, NULL);
+        }
+        else {
+            parse_command(batches[i], args, &argsc);
+            launch_program(args, argsc, NULL, NULL);
+        }
+    }
+
+}

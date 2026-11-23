@@ -16,13 +16,13 @@ int main(int argc, char *argv[]){
     char *args[MAX_ARGS];
 
     ///Stores the number of arguments
-    int argsc;
+    int argsc = 0;
 
     ///Stores the individual pipe processes
     char *pipereqs[MAX_LINE];
 
     ///Stores the number of individual pipe commands
-    int pipereqc;
+    int pipereqc = 0;
 
     ///Stores the individual batch processes
     char *batches[MAX_LINE];
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]){
         // Batch
         if (command_with_batch(line)){
             parse_batch(line, batches, &batchnum);
-            launch_program_batch(batches, batchnum, pipereqs, pipereqc, args, argsc, lwd);
+            launch_program_batch(batches, batchnum, lwd);
             reap();
         }
 
@@ -50,7 +50,16 @@ int main(int argc, char *argv[]){
         // Pipes
         else if(command_with_pipe(line)){ 
             parse_pipes(line, pipereqs, &pipereqc);
-            launch_program_pipe(pipereqs, pipereqc, args, argsc);
+            launch_program_pipe(pipereqs, pipereqc);
+            reap();
+        }
+
+        // Subshell
+        else if (is_subshell(line)){
+            char subshell_line[MAX_LINE];
+            char tail_line[MAX_LINE];
+            extract_subshell(line, subshell_line, tail_line);
+            launch_subshell(subshell_line, tail_line);
             reap();
         }
 

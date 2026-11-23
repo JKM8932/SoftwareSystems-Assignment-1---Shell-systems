@@ -43,9 +43,11 @@ void construct_shell_prompt(char shell_prompt[], char lwd[]);
 void parse_command(char line[], char *args[], int *argsc);
 void parse_pipes(char line[], char *pipereqs[], int *pipereqc);
 void parse_batch(char line[], char *batches[], int *batchnum);
+void extract_subshell(char line[], char subshell_line[], char tail_line[]);
 int command_with_redirection(char line[]);
 int command_with_pipe(char line[]);
 int command_with_batch(char line[]);
+int is_subshell(char line[]);
 
 ///Directory-related
 void init_lwd(char lwd[]);
@@ -60,6 +62,7 @@ void child_with_output_redirected(char *args[], int argsc, char *out_loc);
 ///Program launching functions (add more as appropriate)
 void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE);
 void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE);
-void launch_program_pipe(char *pipereqs[], int pipereqc, char *args[], int argsc);
-void launch_program_batch(char *batches[], int batchnum, char *pipereqs[], int pipereqc, char *args[], int argsc, char lwd[]);
+void launch_program_pipe(char *pipereqs[], int pipereqc);
+void launch_program_batch(char *batches[], int batchnum, char lwd[]);
+void launch_subshell(char subshell[], char tail_line[]);
 #endif

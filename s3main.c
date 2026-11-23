@@ -37,7 +37,7 @@ int main(int argc, char *argv[]){
         // Batch
         if (command_with_batch(line)){
             parse_batch(line, batches, &batchnum);
-            launch_program_batch(batches, batchnum, lwd);
+            launch_program_batch(batches, batchnum, pipereqs, pipereqc, args, argsc, lwd);
             reap();
         }
 
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]){
         // Pipes
         else if(command_with_pipe(line)){ 
             parse_pipes(line, pipereqs, &pipereqc);
-            launch_program_pipe(pipereqs, pipereqc);
+            launch_program_pipe(pipereqs, pipereqc, args, argsc);
             reap();
         }
 

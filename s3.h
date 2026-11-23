@@ -62,7 +62,7 @@ void child_with_output_redirected(char *args[], int argsc, char *out_loc);
 ///Program launching functions (add more as appropriate)
 void launch_program(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE);
 void launch_program_with_redirection(char *args[], int argsc, int *FD_PREAD, int *FD_PWRITE);
-void launch_program_pipe(char *pipereqs[], int pipereqc);
-void launch_program_batch(char *batches[], int batchnum, char lwd[]);
+void launch_program_pipe(char *pipereqs[], int pipereqc, char *args[], int argsc);
+void launch_program_batch(char *batches[], int batchnum, char *pipereqs[], int pipereqc, char *args[], int argsc, char lwd[]);
 void launch_subshell(char subshell[], char tail_line[]);
 #endif
